@@ -1,0 +1,64 @@
+A Fast Word Prediction Engine
+========================================================
+author: Simon Chan  
+date: 19 April 2016  
+width: 1440  
+height: 900  
+transition: rotate  
+font-family: 'Helvetica'  
+
+
+The Model and learning
+========================================================
+
+This word prediction engine make use of the 1st to 4th order [Markov Chain Model](https://en.wikipedia.org/wiki/Markov_chain). 
+- A **Markov Chain Model** basically states that the probability of next state depends only on the present state and not on the previous states
+- 1st order Markov Chain Model frequently suffer from the *aimelsss wandering* problem 
+- So I also introduced the 2nd and 4th order Markov Chain Model to arrive at a more **contextual prediction**. 
+- The application prepares 5 sets **(1.6 Million)** of vocabularies of 1 to 5 n-grams 
+- This application makes extensive use of the Natural Language Processing (NLP) techniques using the `tm` and `quanteda` package for R. 
+
+Performance Considerations
+========================================================
+
+- The size of the n-grams **(63 MB)** are optimized for performance to run on **mobile devices**.
+- The loading time is made short using the `fread` function. 
+- The n-gram tables are stored as `data.table` and indexed using `setkey` for fast access.
+- The response time for the prediction is **almost instantaneous**.
+
+| n-gram    |  Elements   |  Size   |  
+|-----------|:-----------:|:-------:|  
+| Uni-gram  |   128,960   |   5 MB  |  
+| Bi-gram   |   540,192   |  30 MB  |  
+| Tri-gram  |   541,093   |  13 MB  |  
+| Four-gram |   344,721   |  10 MB  |  
+| Five-gram |   125,161   |   5 MB  |  
+
+Prediction Algorithm
+========================================================
+
+- The prediction algorithm is based on a simplified version of "[Katz Back-off Model](https://en.wikipedia.org/wiki/Katz%27s_back-off_model)". 
+- **Katz Back-off Model** estimates probability of a word using n-gram model and "backing-off" to smaller n-gram model under certain conditions. 
+- The simplified version of "Katz back-off" algorithm is the **"Stupid Backoff"** algorithm [(Brants et al 2007)](http://www.aclweb.org/anthology/D07-1090.pdf). The process is as follows:
+<small>
+    1. Predict using five-gram using last 4 words.  
+    2. If Step 1 fails, predict using Four-gram with last 3 words.   
+    3. If Step 2 also fails, predict using Tri-gram using last 2 words.   
+    4. If Step 3 still fails, predict using Bi-gram using the last word.    
+    5. If all steps fail, use the 5 most frequently used word from one-gram.      
+</small>
+- If less than 5 words are found in any steps then the top predictions from the next step is used to fill up the rest of the predictions. 
+
+The Next Word Prediction Application
+========================================================
+
+- The application interface is optimized and simplified to provide a good user experience. 
+- The user just types in the input box and the prediction engine will continously try to predict the next word when the user pauses
+- Link to Application:  [http://architect15.shinyapps.io/wordpredict/](http://architect15.shinyapps.io/wordpredict/)  
+- Link to Source Files: [http://github.com/Architct15/wordprediction](http://github.com/Architct15/wordprediction)
+
+## Applications of Word Prediction Engine
+1. Input assistance for mobile devices 
+2. Machine translation
+3. Document error checking 
+4. Handwriting recognition

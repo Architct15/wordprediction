@@ -1,0 +1,3 @@
+####Try it out!
+**First, Wait for the application to load and show the first 5 suggestions**  
+Then just type in an incomplete phrase and the application will predict the next word when you stop typing.

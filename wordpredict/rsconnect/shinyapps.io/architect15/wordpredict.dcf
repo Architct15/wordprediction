@@ -1,0 +1,9 @@
+name: wordpredict
+account: architect15
+server: shinyapps.io
+appId: 95821
+bundleId: 426359
+url: https://architect15.shinyapps.io/wordpredict/
+when: 1461161651.04092
+asMultiple: FALSE
+asStatic: FALSE

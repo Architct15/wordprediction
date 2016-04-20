@@ -1,0 +1,60 @@
+---
+title: "Documentation: How The Word Prediction Engine Works"
+subtitle: "Data Science Capstone Project"
+author: "Simon Chan"
+date: "April 17, 2016"
+output: html_document
+---
+Link to Presentation: [http://rpubs.com/Architect15/wordprediction](http://rpubs.com/Architect15/wordprediction)  
+Link to Source Files: [https://github.com/Architct15/wordprediction](https://github.com/Architct15/wordprediction)  
+
+## Background  
+Predicting the next word from a given text may be easy for a human being but it is not an easy task for a computer. 
+
+Human beings predict the next word from the context of the text given and perform extensive searching in the brain for the words that makes sense based on his/her previous experience. The experience is created through many years of reading and conversation with other people. 
+
+For a computer program it need to go through a similar but simplified process. This document outlines the implementatin of a word prediction engine that is optimized to run on mobile devices with good response time.
+
+## Model 
+I make use of the 1st to 4th order [Markov Chain Model](https://en.wikipedia.org/wiki/Markov_chain) as a structure for the prediction. 
+A Markov chain is a sequence of random variables X1, X2, X3, ... with the Markov property, namely that the probability of moving to next state depends only on the present state and not on the previous states
+$$ Pr(X_{n+1} = x | X_{1}=x_{1}, X_{2}=x_{2},...,X_{n}=x_{n}) =  Pr(X_{n+1} = x | X_{n}=x_{n}) $$
+When using 1st order Markov Chain for predicting the next word we will frequently suffer from the 'aimelsss wandering' problem with incorrect predictions due to lack of context. So 2nd and 4th order Markov Chain model are introduced to arrive at a more contextual prediction.
+
+A Markov chain of order m (or a Markov chain with memory m), where m is finite, is a process satisfying
+$$ Pr(X_{n} = x | X_{1}=x_{1}, X_{2}=x_{2},...,X_{n-1}=x_{n-1}) =  Pr(X_{n} = x | X_{n-1}=x_{n-1}, X_{n-2}=x_{n-2},...,X_{n-m}=x_{n-m})$$
+
+## Learning
+The application first prepares 5 sets **(1.7 million)** of vocabularies consisting of 1 to 5 commonly used continuous words (n-grams) extracted from over 3 million [twitter, news and blog documents](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip). This process makes extensive use of the Natural Language Processing (NLP) techniques applied in the `tm` and `quanteda` package. 
+
+## Performance considerations
+The size of the n-grams are optimized for performance by pruning those elements with lower probabilities (occurence). The reduced size **(63 MB)** enables it to run on mobile devices with very fast response time. The loading time is made short using the `fread` function which is very fast. The n-gram tables are stored as `data.table` and indexed using `setkey` for fast access. The response time for the prediction is almost instantaneous.
+
+| n-gram    |  Elements   |  Size   |
+|-----------|:------------|:--------|
+| Uni-gram  | 128,960     |   5 MB  |
+| Bi-gram   | 540,192     |  30 MB  |
+| Tri-gram  | 541,093     |  13 MB  |
+| Four-gram | 344,721     |  10 MB  |
+| Five-gram | 125,161     |   5 MB  |
+
+## Prediction Algorithm
+
+The prediction algorithm is based on a simplified version of "[Katz Back-off Model](https://en.wikipedia.org/wiki/Katz%27s_back-off_model)". Katz Back-off is a generative n-gram language model that estimates the conditional probability of a word given its history in the n-gram. It accomplishes this estimation by "backing-off" to models with smaller histories under certain conditions. By doing so, the model with the most reliable information about a given history is used to provide the better results.
+
+The simplified version of "Katz back-off" algorithm is the "Stupid Backoff" algorithm [(Brants et al 2007)](http://www.aclweb.org/anthology/D07-1090.pdf). The process is as follows:
+
+1. Extract the last 4 words from text and search in Five-gram for match in the first 4 positions. If found, use the 5th word as prediction(s)  
+2. If Step 1 fails, search in Four-gram for match of the last 3 words. If found, use the 4th word as prediction(s)  
+3. If Step 2 also fails, search in Tri-gram for match of the last 2 words. If found use the 3rd word as prediction(s)  
+4. If Step 3 also fails, search in Bi-gram for match of the last word. If found use the 2nd word as prediction(s)  
+5. If all steps fail, use the 5 most frequently used word from one-gram.  
+
+If more words are found, they are ranked according to their probability which is proportional to their frequency of occurance. If less than 5 words are found in any steps then the top predictions from the next step is used to fill up the rest of the predictions. 
+
+## Applications of Word Prediction
+
+1. Input assistance for mobile devices 
+2. Machine translation
+3. Document error checking 
+4. Handwriting recognition
