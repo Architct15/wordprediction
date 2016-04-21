@@ -51,14 +51,10 @@ Prediction Algorithm
 
 The Next Word Prediction Application
 ========================================================
-
+![Application](app.png)
+***
 - The application interface is optimized and simplified to provide a good user experience. 
 - The user just types in the input box and the prediction engine will continously try to predict the next word when the user pauses
+- The application also displays the top 5 word distribution from each n-gram using a **donut chart**. This helps the user to **visualize** the relative distribution of predicted words in each of the n-grams. 
 - Link to Application:  [http://architect15.shinyapps.io/wordpredict/](http://architect15.shinyapps.io/wordpredict/)  
 - Link to Source Files: [http://github.com/Architct15/wordprediction](http://github.com/Architct15/wordprediction)
-
-## Applications of Word Prediction Engine
-1. Input assistance for mobile devices 
-2. Machine translation
-3. Document error checking 
-4. Handwriting recognition

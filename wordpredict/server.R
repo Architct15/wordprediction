@@ -9,6 +9,7 @@
 library(shiny)
 require(data.table)
 require(tm)
+require(ggplot2)
 profanity_vector <- VectorSource(readLines("bad-words.txt"))
 
 # Read all n-grams using fast fread
@@ -17,7 +18,10 @@ bigram <- fread("bigram.csv", header = TRUE,stringsAsFactors = FALSE)
 trigram <- fread("trigram.csv", header = TRUE, stringsAsFactors = FALSE)
 fourgram <- fread("fourgram.csv", header = TRUE, stringsAsFactors = FALSE)
 fivegram <- fread("fivegram.csv", header = TRUE, stringsAsFactors = FALSE)
-defaultResult <- head(onegram[order(-freq)], 6)$word
+defaultResult <- head(onegram[order(-freq)], 5)[,list(word, freq)]
+defaultResult <- data.frame(rep("1-gram", nrow(defaultResult)),defaultResult$word, defaultResult$freq/sum(defaultResult$freq)*100)
+colnames(defaultResult) <- c("Ngram", "word", "prob")
+
 
 # Create index for fast access
 setkey(onegram,word)
@@ -46,28 +50,40 @@ cleaninput <- function(inputs) {
 searchFivegram <- function(w1, w2, w3, w4) {
     result <- fivegram[.(w1, w2, w3, w4)]
     result <- result[order(-freq)]
-    return(head(result,5)$word5)
+    result <- head(result,5)[,list(word5, freq)]
+    result <- data.frame(rep("5-gram", nrow(result)),result$word5, result$freq/sum(result$freq)*100)
+    colnames(result) <- c("Ngram", "word", "prob")
+    return(result)
 }
 
 # Search 4-gram
 searchFourgram <- function(w1, w2, w3) {
     result <- fourgram[.(w1, w2, w3)]
     result <- result[order(-freq)]
-    return(head(result,5)$word4)
+    result <- head(result,5)[,list(word4, freq)]
+    result <- data.frame(rep("4-gram", nrow(result)),result$word4, result$freq/sum(result$freq)*100)
+    colnames(result) <- c("Ngram", "word", "prob")
+    return(result)
 }
 
 # Search 3-gram
 searchTrigram <- function(w1, w2) {
     result <- trigram[.(w1, w2)]
     result <- result[order(-freq)]
-    return(head(result,5)$word3)
+    result <- head(result,5)[,list(word3, freq)]
+    result <- data.frame(rep("3-gram", nrow(result)),result$word3, result$freq/sum(result$freq)*100)
+    colnames(result) <- c("Ngram", "word", "prob")
+    return(result)
 }
 
 # Search 2-gram
 searchBigram <- function(w1) {
     result <- bigram[.(w1)]
     result <- result[order(-freq)]
-    return(head(result,5)$word2)
+    result <- head(result,5)[,list(word2, freq)]
+    result <- data.frame(rep("2-gram", nrow(result)),result$word2, result$freq/sum(result$freq)*100)
+    colnames(result) <- c("Ngram", "word", "prob")
+    return(result)
 }
 
 # Search 1-gram, return the default 5 most frequent uni-gram
@@ -75,20 +91,38 @@ searchOnegram <- function() {
     return(defaultResult)
 }
 
+wbind <- function(l1, l2) {
+  l1 <- l1[!is.na(l1$word),]
+  l2 <- l2[!is.na(l2$word),]
+  rbind(l1,l2)
+}
+
 # Prediction with Stupid back-off Algorithm 
 predictword <- function (inwords){
     # break word and select last three words
     inwords <- cleaninput(inwords)
     wlist <- searchFivegram(inwords[4], inwords[3], inwords[2], inwords[1])
-    wlist <- append(wlist, searchFourgram(inwords[3], inwords[2], inwords[1]))
-    wlist <- append(wlist, searchTrigram(inwords[2], inwords[1]))
-    wlist <- append(wlist, searchBigram(inwords[1]))
-    wlist <- append(wlist, searchOnegram())
-    wlist <- wlist[!is.na(wlist)]
-    return(as.character(head(unique(wlist), 5)))
+#    wtable <- data.frame(rep(paste(inwords[4], inwords[3], inwords[2], inwords[1], sep=" "), nrow(wlist)), wlist)
+    wlist <- wbind(wlist, searchFourgram(inwords[3], inwords[2], inwords[1]))
+    wlist <- wbind(wlist, searchTrigram(inwords[2], inwords[1]))
+    wlist <- wbind(wlist, searchBigram(inwords[1]))
+    wlist <- wbind(wlist, searchOnegram())
+    wlist <- wlist[!is.na(wlist$word),]
+    wlist$ymax = cumsum(wlist$prob)
+    wlist$ymin = c(0, head(wlist$ymax, n=-1))
+    return(wlist)
 }
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
-    output$table <- renderTable(data.frame(Predictions = predictword(input$text)))
+    output$table <- renderTable(data.frame(Prediction = head(unique(predictword(input$text)$word),5)))
+    output$wplot <- renderPlot(
+        ggplot(predictword(input$text)) + 
+            geom_rect(aes(fill=word, ymin=ymin, ymax=ymax, xmax=4, xmin=3)) +
+            geom_rect(aes(fill=Ngram, ymin=ymin, ymax=ymax, xmax=2.95, xmin=2)) +
+            coord_polar(theta="y") +
+            xlim(c(0, 4)) + 
+            theme(aspect.ratio=1)+
+            ggtitle("Top 5 Word Distribution in each of N-gram")
+    )
 })
